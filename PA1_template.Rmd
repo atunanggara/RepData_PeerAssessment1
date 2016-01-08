@@ -10,6 +10,7 @@ output:
 
 ```{r load_data}
 ActData<-read.csv("~/Documents/LearningR/ReproducibleResearch/Project1/activity.csv",header=TRUE,na.strings="NA",stringsAsFactors = FALSE)
+# Make sure that the date column is in date format
 dateData<-as.Date(ActData$date,"%Y-%m-%d")
 ActData$date<-dateData
 ```
@@ -23,7 +24,11 @@ ActData$date<-dateData
 ```{r reshape}
 library(reshape2)
 meltedData<-melt(ActData,is=c("interval","date"),measure.vars="steps",na.rm=TRUE)
+# This process gives us a summary of date and interval with the amount of steps as the value
+head(meltedData)
 castedData<-dcast(meltedData,date~variable,sum)
+# This gives us the total number of steps per day
+head(castedData)
 ```
 
 2. Make a histogram of the total number of steps taken each day
@@ -43,7 +48,8 @@ median(castedData$steps)
  Make a time series plot (i.e. type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 ```{r cast_melt_1}
 meancastedData<-dcast(meltedData,interval~variable,mean)
-plot(meancastedData$interval,meancastedData$steps,type="l")
+# this casts the earlier dataset "meltedData" into the average of steps per interval
+plot(meancastedData$interval,meancastedData$steps,type="l",xlab="step interval",ylab="average value")
 ```
 
 Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
@@ -53,13 +59,13 @@ meancastedData[meancastedData$steps==max(meancastedData$steps),]
 # That would be interval 835 with the maximum step of 206.2
 ```
 
-## Inputing missing values
+## Inputting missing values
 
 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
 ```{r no_steps}
 NainSteps<-is.na(ActData$steps)
 
-### To compute, we add the number of True statement up (since TRUE = 1 and FALSE = 0) 
+### To compute the total number of NAs, we add the number of True statement up (since TRUE = 1 and FALSE = 0) 
 sum(NainSteps)
 
 ### It totaled into 2304 values that are missing in the dataset
@@ -76,21 +82,30 @@ Subset the data for all rows that are NAs
 ```{r subset1}
 NAdata<- ActData[NainSteps,]
 
+# I merge the NAdata data set with the casted average interval value
 ReplaceData<-merge(NAdata,meancastedData,by="interval")
+# Delete the NA steps
 ReplaceData$steps.x<-NULL
+# Change the name
 names(ReplaceData)<-c("interval","date","steps")
+# Reorder the data
 ReplaceData<-ReplaceData[c(3,2,1)]
+# Put them as integer
 ReplaceData$steps<-as.integer(ReplaceData$steps)
 
 ### Let's Remove all the NAs from the Original Data
+# Subset the data that are without NAs
 WONAData<-ActData[!is.na(ActData$steps),]
+# Apppend the replacement data with the complete data
 FinalData<-rbind(ReplaceData,WONAData)
+# Reorder the data set by date
 FinalData<-FinalData[order(FinalData$date,FinalData$interval),]
 ```
 
 4. Make a histogram of the total number of steps taken each day and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of inputing missing data on the estimates of the total daily number of steps?
 
 ```{r hist_2}
+# Redo the process in the first question
 FinalmeltedData<-melt(FinalData,is=c("interval","date"),measure.vars="steps",na.rm=TRUE)
 FinalcastedData<-dcast(FinalmeltedData,date~variable,sum)
 hist(FinalcastedData$steps,main="Histogram of Total Steps per Day",xlab="Total Steps per Day")
@@ -99,31 +114,40 @@ mean(FinalcastedData$steps)
 ### The mean is: 10749.77
 median(FinalcastedData$steps)
 ### The median is: 10641
-### The mean and median value decreased from the 1st part
-
 ```
-
+From the first part, their mean and median were 10766.19 and 10765, respectively. The mean and median value after adding more data points decreased by 16.42 and 124 from the 1st part, respectively.
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
 1. Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
 ```{r FactorVariable}
-WeekValue<-weekdays(FinalData$date)
+# Let's create a dataset showing which days are weekdays and which days are weekends
+
 DayoftheWeek<-c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
 WeekDayEnd<-c(rep("Weekday",5),rep("Weekend",2))
 VariablesWeekDayEnd<-data.frame(DayoftheWeek,WeekDayEnd)
 names(VariablesWeekDayEnd)<-c("WeekValue","WeekDayEnd")
+VariablesWeekDayEnd
+
+# Let's put the label of what day is the date into the FinalData dataset
+WeekValue<-weekdays(FinalData$date)
 WDayFinalData<-cbind(FinalData,WeekValue)
+
+# We will then merge the two data frames by the common variable "WeekValue"
 WdayAllData<-merge(WDayFinalData,VariablesWeekDayEnd,by="WeekValue")
-str(WdayAllData)
+# str(WdayAllData)
+# I deleted the weekvalue column here
 WdayAllData$WeekValue<-NULL
 ```
 
 2. Make a panel plot containing a time series plot(i.e. type="l") of the  5-minute interval (x-axis) and the average number of steps taken averaged across all weekdays days or weekend days (y-axis).
 
 ```{r PanelPlot}
+# melt the just-created data with respect to interval, date and the weekend/weekday variable with respect to the steps taken
 WdaymeltedData<-melt(WdayAllData,is=c("interval","date","WeekDayEnd"),measure.vars="steps")
+# cast the data with respect to their average steps
 WdaymeancastedData<-dcast(WdaymeltedData,interval+WeekDayEnd~variable,mean)
+# plot the data based on whether it's weekend of weekday
 library(ggplot2)
 ggplot(WdaymeancastedData,aes(x=interval,y=steps))+geom_line()+facet_grid(.~WeekDayEnd)
 ```
